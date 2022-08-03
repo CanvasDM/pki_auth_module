@@ -1,0 +1,124 @@
+---
+info:
+  title: pki_auth_attributes
+attributes:
+  - name: tel_trust_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/tel/trust"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the trust store for telemetry authentication."
+  - name: tel_key_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/enc/tel/key"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the key store for telemetry authentication."
+  - name: dm_trust_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/dm/trust"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the trust store for DM authentication."
+  - name: dm_key_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/enc/dm/key"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the key store for DM authentication."
+  - name: fs_trust_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/fs/trust"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the trust store for firmware and file service authentication."
+  - name: fs_key_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/enc/fs/key"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the key store for firmware and file service authentication."
+  - name: p2p_trust_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/p2p/trust"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the trust store for peer-to-peer authentication."
+  - name: p2p_key_path
+    required: true
+    schema:
+      minLength: 1
+      maxLength: 32
+      type: string
+    x-ctype: string
+    x-broadcast: false
+    x-default: "/lfs1/enc/p2p/key"
+    x-lockable: false
+    x-prepare: false
+    x-readable: true
+    x-savable: true
+    x-writable: true
+    summary: "The path to the key store for peer-to-peer authentication."
