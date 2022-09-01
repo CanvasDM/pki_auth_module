@@ -58,7 +58,7 @@ static int cmd_pki_keygen(const struct shell *shell, size_t argc, char **argv)
 
 	if (argc != 2) {
 		shell_print(shell, "Provide a store name");
-		return 0;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < LCZ_PKI_AUTH_STORE__NUM; i++) {
@@ -68,18 +68,18 @@ static int cmd_pki_keygen(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	if (i >= LCZ_PKI_AUTH_STORE__NUM) {
-		shell_print(shell, "Store name invalid");
-		return 0;
+		shell_error(shell, "Store name invalid");
+		return -EINVAL;
 	}
 
 	ret = lcz_pki_auth_key_pair_gen(STORE_NAME_TO_STORE[i].store);
 	if (ret == 0) {
 		shell_print(shell, "Success");
 	} else {
-		shell_print(shell, "Failure %d", ret);
+		shell_error(shell, "Failure %d", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int cmd_pki_csrgen(const struct shell *shell, size_t argc, char **argv)
@@ -89,7 +89,7 @@ static int cmd_pki_csrgen(const struct shell *shell, size_t argc, char **argv)
 
 	if (argc != 5) {
 		shell_print(shell, "pki csrgen <store> <country> <org> <suffix>");
-		return 0;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < LCZ_PKI_AUTH_STORE__NUM; i++) {
@@ -99,18 +99,18 @@ static int cmd_pki_csrgen(const struct shell *shell, size_t argc, char **argv)
 	}
 
 	if (i >= LCZ_PKI_AUTH_STORE__NUM) {
-		shell_print(shell, "Store name invalid");
-		return 0;
+		shell_error(shell, "Store name invalid");
+		return -EINVAL;
 	}
 
 	ret = lcz_pki_auth_csr_gen(STORE_NAME_TO_STORE[i].store, argv[2], argv[3], argv[4]);
 	if (ret == 0) {
 		shell_print(shell, "Success");
 	} else {
-		shell_print(shell, "Failure %d", ret);
+		shell_error(shell, "Failure %d", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int cmd_pki_status(const struct shell *shell, size_t argc, char **argv)
