@@ -30,4 +30,36 @@ config LCZ_PKI_AUTH_SHELL
 	depends on SHELL
 	default y if SHELL
 
+config LCZ_PKI_AUTH_SMP_PERIPHERAL
+	bool "PKI Authentication over SMP peripheral"
+	depends on MCUMGR
+	help
+	  The "peripheral" implementation of PKI authentication. This should be
+	  available over BLE and/or shell/UART.
+
+config LCZ_PKI_AUTH_SMP_CENTRAL
+	bool "PKI Authentication over SMP central"
+	depends on LCZ_LWM2M_GATEWAY_OBJ
+	depends on LCZ_BT
+	depends on BT_CENTRAL
+	depends on BT_DFU_SMP
+	help
+	  The "central" implementation of PKI authentication. Talks to the "peripheral"
+	  implementation to allow the devices to authenticate each other.
+
+config LCZ_PKI_AUTH_SMP_GROUP_ID
+	int "SMP group ID for PKI authentication"
+	default 70
+
+config LCZ_PKI_AUTH_SMP_SESSION_TIME
+	int "Length of an SMP authentication session in seconds"
+	default 86400
+	help
+	  This time is the period that session resume messages will be used instead of
+	  the full certificate exchange between sensors and gateways.
+
+config LCZ_PKI_AUTH_SMP_INIT_PRIORITY
+	int "Application initialization priority for PKI auth SMP"
+	default APPLICATION_INIT_PRIORITY
+
 endif # LCZ_PKI_AUTH

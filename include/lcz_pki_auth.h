@@ -13,6 +13,10 @@
 /* Includes                                                                                       */
 /**************************************************************************************************/
 #include <zephyr.h>
+#include "mbedtls/pk.h"
+#include "mbedtls/x509.h"
+#include "mbedtls/x509_crt.h"
+#include "psa/crypto.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,6 +123,55 @@ int lcz_pki_auth_tls_credential_unload(LCZ_PKI_AUTH_STORE_T store, int tls_tag);
  * the state of the credential store
  */
 uint8_t lcz_pki_auth_store_status(LCZ_PKI_AUTH_STORE_T store);
+
+/**
+ * @brief Load and parse the CA certificate for the specified credential store
+ *
+ * @param[in] store Store for which to read the CA certificate
+ * @param[in] cert Pointer to mbedtls certificate structure to hold certificate
+ *
+ * @note The cert pointer must point to an already-initialized mbedtls certificate
+ * structure. The caller is responsible for freeing the certificate.
+ *
+ * @returns 0 on success, <0 on error
+ */
+int lcz_pki_auth_get_ca(LCZ_PKI_AUTH_STORE_T store, mbedtls_x509_crt *cert);
+
+/**
+ * @brief Load and parse the device certificate for the specified credential store
+ *
+ * @param[in] store Store for which to read the device certificate
+ * @param[in] cert Pointer to mbedtls certificate structure to hold certificate
+ *
+ * @note The cert pointer must point to an already-initialized mbedtls certificate
+ * structure. The caller is responsible for freeing the certificate.
+ *
+ * @returns 0 on success, <0 on error
+ */
+int lcz_pki_auth_get_dev_cert(LCZ_PKI_AUTH_STORE_T store, mbedtls_x509_crt *cert);
+
+/**
+ * @brief Load and parse the private key for the specified credential store
+ *
+ * @param[in] store Store for which to read the private key
+ * @param[in] key Pointer to mbedtls key structure to hold the private key
+ *
+ * @note The key pointer must point to an already-initialized mbedtls key
+ * structure. The caller is responsible for freeing the key.
+ *
+ * @returns 0 on success, <0 on error
+ */
+int lcz_pki_auth_get_priv_key(LCZ_PKI_AUTH_STORE_T store, mbedtls_pk_context *key);
+
+/**
+ * @brief Convert an mbedtls private key into a PSA key
+ *
+ * @param[in] pk mbedtls key context to convert
+ * @param[out] key New PSA key id
+ *
+ * @returns 0 on success, <0 on error
+ */
+int lcz_pki_auth_pk_to_psa_key(mbedtls_pk_context *pk, psa_key_id_t *key);
 
 #ifdef __cplusplus
 }

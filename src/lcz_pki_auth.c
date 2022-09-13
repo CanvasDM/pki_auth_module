@@ -23,6 +23,7 @@ LOG_MODULE_REGISTER(lcz_pki_auth, CONFIG_LCZ_PKI_AUTH_LOG_LEVEL);
 #include "mbedtls/x509.h"
 #include "mbedtls/x509_csr.h"
 #include "mbedtls/x509_crt.h"
+#include "mbedtls/error.h"
 #include "psa/crypto.h"
 #include "psa/error.h"
 
@@ -83,7 +84,7 @@ static int rng(void *context, unsigned char *data, size_t size);
 static bool file_exists(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file);
 static int file_size(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file);
 static int load_file(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file, uint8_t *buffer,
-	      size_t buffer_size);
+		     size_t buffer_size);
 
 /**************************************************************************************************/
 /* Local Data Definitions                                                                         */
@@ -689,6 +690,147 @@ done:
 	return flags;
 }
 
+int lcz_pki_auth_get_ca(LCZ_PKI_AUTH_STORE_T store, mbedtls_x509_crt *cert)
+{
+	uint8_t *ca_cert_buffer = NULL;
+	int ret = 0;
+
+	/* Allocate memory to read the CA certificate file */
+	ca_cert_buffer = k_malloc(CERT_BUFFER_SIZE);
+	if (ca_cert_buffer == NULL) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	/* Load the CA certificate file */
+	ret = load_file(store, LCZ_PKI_AUTH_FILE_CA_CERTIFICATE, ca_cert_buffer, CERT_BUFFER_SIZE);
+	if (ret < 0) {
+		goto done;
+	}
+
+	/* Parse the certificate */
+	ret = mbedtls_x509_crt_parse(cert, ca_cert_buffer, strlen(ca_cert_buffer) + 1);
+	if (ret < 0) {
+		LOG_ERR("lcz_pki_auth_get_ca: Could not parse CA certificate: %d", ret);
+		goto done;
+	}
+
+done:
+	if (ca_cert_buffer != NULL) {
+		memset(ca_cert_buffer, 0, CERT_BUFFER_SIZE);
+		k_free(ca_cert_buffer);
+	}
+
+	return ret;
+}
+
+int lcz_pki_auth_get_dev_cert(LCZ_PKI_AUTH_STORE_T store, mbedtls_x509_crt *cert)
+{
+	uint8_t *cert_buffer = NULL;
+	int ret = 0;
+
+	/* Allocate memory to read the CA certificate file */
+	cert_buffer = k_malloc(CERT_BUFFER_SIZE);
+	if (cert_buffer == NULL) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	/* Load the certificate file */
+	ret = load_file(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE, cert_buffer, CERT_BUFFER_SIZE);
+	if (ret < 0) {
+		goto done;
+	}
+
+	/* Parse the certificate */
+	ret = mbedtls_x509_crt_parse(cert, cert_buffer, strlen(cert_buffer) + 1);
+	if (ret < 0) {
+		LOG_ERR("lcz_pki_auth_get_dev_cert: Could not parse device certificate: %d", ret);
+		goto done;
+	}
+
+done:
+	if (cert_buffer != NULL) {
+		memset(cert_buffer, 0, CERT_BUFFER_SIZE);
+		k_free(cert_buffer);
+	}
+
+	return ret;
+}
+
+int lcz_pki_auth_get_priv_key(LCZ_PKI_AUTH_STORE_T store, mbedtls_pk_context *key)
+{
+	uint8_t *key_buffer = NULL;
+	int ret = 0;
+
+	/* Allocate memory to read the CA certificate file */
+	key_buffer = k_malloc(KEY_BUFFER_SIZE);
+	if (key_buffer == NULL) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	/* Load the certificate file */
+	ret = load_file(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY, key_buffer, KEY_BUFFER_SIZE);
+	if (ret < 0) {
+		goto done;
+	}
+
+	/* Parse the key */
+	ret = mbedtls_pk_parse_key(key, key_buffer, strlen(key_buffer) + 1, NULL, 0, rng, NULL);
+	if (ret < 0) {
+		LOG_ERR("lcz_pki_auth_get_priv_key: Could not parse private key: %d", ret);
+		goto done;
+	}
+
+done:
+	if (key_buffer != NULL) {
+		memset(key_buffer, 0, KEY_BUFFER_SIZE);
+		k_free(key_buffer);
+	}
+
+	return ret;
+}
+
+int lcz_pki_auth_pk_to_psa_key(mbedtls_pk_context *pk, psa_key_id_t *key)
+{
+	const mbedtls_ecp_keypair *ec;
+	unsigned char d[MBEDTLS_ECP_MAX_BYTES];
+	size_t d_len;
+	psa_ecc_family_t curve_id;
+	psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+	psa_key_type_t key_type;
+	size_t bits;
+	int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
+
+	/* export the private key material in the format PSA wants */
+	if (mbedtls_pk_get_type(pk) != MBEDTLS_PK_ECKEY) {
+		return (MBEDTLS_ERR_PK_TYPE_MISMATCH);
+	}
+
+	ec = mbedtls_pk_ec(*pk);
+	d_len = PSA_BITS_TO_BYTES(ec->private_grp.nbits);
+	if ((ret = mbedtls_mpi_write_binary(&ec->private_d, d, d_len)) != 0) {
+		return (ret);
+	}
+
+	curve_id = mbedtls_ecc_group_to_psa(ec->private_grp.id, &bits);
+	key_type = PSA_KEY_TYPE_ECC_KEY_PAIR(curve_id);
+
+	/* prepare the key attributes */
+	psa_set_key_type(&attributes, key_type);
+	psa_set_key_bits(&attributes, bits);
+	psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_DERIVE);
+	psa_set_key_algorithm(&attributes, PSA_ALG_ECDH);
+
+	/* import private key into PSA */
+	if (PSA_SUCCESS != psa_import_key(&attributes, d, d_len, key)) {
+		return (MBEDTLS_ERR_PLATFORM_HW_ACCEL_FAILED);
+	}
+
+	return 0;
+}
+
 /**************************************************************************************************/
 /* Local Function Definitions                                                                     */
 /**************************************************************************************************/
@@ -733,7 +875,7 @@ static int file_size(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file)
 }
 
 static int load_file(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file, uint8_t *buffer,
-	      size_t buffer_size)
+		     size_t buffer_size)
 {
 	uint8_t filename[FSU_MAX_ABS_PATH_SIZE];
 	int ret = -ENOENT;

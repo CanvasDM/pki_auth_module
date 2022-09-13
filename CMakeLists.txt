@@ -11,5 +11,7 @@ zephyr_sources(src/lcz_pki_auth.c)
 zephyr_sources_ifdef(CONFIG_LCZ_PKI_AUTH_SHELL
     src/lcz_pki_auth_shell.c
     )
+zephyr_sources_ifdef(CONFIG_LCZ_PKI_AUTH_SMP_PERIPHERAL src/lcz_pki_auth_smp_periph.c)
+zephyr_sources_ifdef(CONFIG_LCZ_PKI_AUTH_SMP_CENTRAL src/lcz_pki_auth_smp_central.c)
 
 endif()
