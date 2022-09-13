@@ -41,12 +41,21 @@ static int cmd_pki_status(const struct shell *shell, size_t argc, char **argv);
 /* Local Data Definitions                                                                         */
 /**************************************************************************************************/
 SHELL_STATIC_SUBCMD_SET_CREATE(
-	sub_pki,
-	SHELL_CMD(keygen, NULL, "Generate key pair for store", cmd_pki_keygen),
-	SHELL_CMD(csrgen, NULL, "Generate CSR for store", cmd_pki_csrgen),
+	sub_pki, SHELL_CMD_ARG(keygen, NULL, "Generate key pair for store", cmd_pki_keygen, 2, 0),
+	SHELL_CMD_ARG(csrgen, NULL,
+		      "Generate CSR for store.\r\n"
+		      "pki csrgen <store> <country> <org> <org_unit> <common_name>",
+		      cmd_pki_csrgen, 6, 0),
 	SHELL_CMD(status, NULL, "Display trust store status", cmd_pki_status),
 	SHELL_SUBCMD_SET_END);
-SHELL_CMD_REGISTER(pki, &sub_pki, "PKI Utilities", NULL);
+SHELL_CMD_REGISTER(pki, &sub_pki,
+		   "PKI Utilities\r\n"
+		   "Available trust/key stores:\r\n"
+		   "dm  - device management\r\n"
+		   "tel - telemetry\r\n"
+		   "p2p - peer-to-peer\r\n"
+		   "fs  - file service (firmware updates)",
+		   NULL);
 
 /**************************************************************************************************/
 /* Local Function Definitions                                                                     */
@@ -55,11 +64,6 @@ static int cmd_pki_keygen(const struct shell *shell, size_t argc, char **argv)
 {
 	int ret;
 	int i;
-
-	if (argc != 2) {
-		shell_print(shell, "Provide a store name");
-		return -EINVAL;
-	}
 
 	for (i = 0; i < LCZ_PKI_AUTH_STORE__NUM; i++) {
 		if (strcmp(argv[1], STORE_NAME_TO_STORE[i].name) == 0) {
@@ -87,11 +91,6 @@ static int cmd_pki_csrgen(const struct shell *shell, size_t argc, char **argv)
 	int ret;
 	int i;
 
-	if (argc != 5) {
-		shell_print(shell, "pki csrgen <store> <country> <org> <suffix>");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < LCZ_PKI_AUTH_STORE__NUM; i++) {
 		if (strcmp(argv[1], STORE_NAME_TO_STORE[i].name) == 0) {
 			break;
@@ -103,7 +102,8 @@ static int cmd_pki_csrgen(const struct shell *shell, size_t argc, char **argv)
 		return -EINVAL;
 	}
 
-	ret = lcz_pki_auth_csr_gen(STORE_NAME_TO_STORE[i].store, argv[2], argv[3], argv[4]);
+	ret = lcz_pki_auth_csr_gen(STORE_NAME_TO_STORE[i].store, argv[2], argv[3], argv[4],
+				   argv[5]);
 	if (ret == 0) {
 		shell_print(shell, "Success");
 	} else {

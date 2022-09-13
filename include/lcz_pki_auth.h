@@ -85,12 +85,13 @@ int lcz_pki_auth_key_pair_gen(LCZ_PKI_AUTH_STORE_T store);
  * @param[in] store Store for which to generate a new CSR
  * @param[in] country Pointer to string holding the country designation for the CSR
  * @param[in] organization Pointer to string holding the organization designation for the CSR
- * @param[in] device_suffix Pointer to string holding the suffix for the common name for the CSR
+ * @param[in] organization_unit Pointer to string holding the organizational unit designation for the CSR
+ * @param[in] common_name Pointer to string holding the common name for the CSR
  *
  * @returns 0 on success, <0 on error
  */
 int lcz_pki_auth_csr_gen(LCZ_PKI_AUTH_STORE_T store, const char *country, const char *organization,
-			 const char *device_suffix);
+			 const char *organization_unit, const char *common_name);
 
 #if defined(CONFIG_TLS_CREDENTIALS)
 /**

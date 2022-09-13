@@ -260,7 +260,7 @@ int lcz_pki_auth_key_pair_gen(LCZ_PKI_AUTH_STORE_T store)
 }
 
 int lcz_pki_auth_csr_gen(LCZ_PKI_AUTH_STORE_T store, const char *country, const char *organization,
-			 const char *device_suffix)
+			 const char *organization_unit, const char *common_name)
 {
 	uint8_t filename[FSU_MAX_ABS_PATH_SIZE];
 	mbedtls_pk_context key;
@@ -283,8 +283,8 @@ int lcz_pki_auth_csr_gen(LCZ_PKI_AUTH_STORE_T store, const char *country, const 
 	}
 
 	/* Build the subject string */
-	ret = snprintf(subject, SUBJECT_BUFFER_SIZE, "C=%s,O=%s,CN=%s%s", country, organization,
-		       (char *)attr_get_quasi_static(ATTR_ID_device_id), device_suffix);
+	ret = snprintf(subject, SUBJECT_BUFFER_SIZE, "C=%s,O=%s,OU=%s,CN=%s", country, organization,
+		       organization_unit, common_name);
 	if (ret > SUBJECT_BUFFER_SIZE) {
 		LOG_ERR("lcz_pki_auth_csr_gen: Subject longer than buffer: %d > %d", ret,
 			SUBJECT_BUFFER_SIZE);
