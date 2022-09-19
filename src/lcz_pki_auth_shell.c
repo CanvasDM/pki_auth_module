@@ -117,9 +117,13 @@ static int cmd_pki_status(const struct shell *shell, size_t argc, char **argv)
 {
 	int i;
 	uint8_t flags;
+	int ret = 0;
 
 	for (i = 0; i < LCZ_PKI_AUTH_STORE__NUM; i++) {
 		flags = lcz_pki_auth_store_status(STORE_NAME_TO_STORE[i].store);
+		if (ret == 0 && flags != LCZ_PKI_AUTH_STATUS_GOOD) {
+			ret = -EIO;
+		}
 		shell_print(shell, "%-3s %d %d %d %d %d %d %d %d %s", STORE_NAME_TO_STORE[i].name,
 			    (flags >> 0) & 0x01, (flags >> 1) & 0x01, (flags >> 2) & 0x01,
 			    (flags >> 3) & 0x01, (flags >> 4) & 0x01, (flags >> 5) & 0x01,
@@ -127,5 +131,5 @@ static int cmd_pki_status(const struct shell *shell, size_t argc, char **argv)
 			    (flags == LCZ_PKI_AUTH_STATUS_GOOD) ? "good" : "bad");
 	}
 
-	return 0;
+	return ret;
 }
