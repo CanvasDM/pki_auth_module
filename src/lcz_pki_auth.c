@@ -656,7 +656,7 @@ uint8_t lcz_pki_auth_store_status(LCZ_PKI_AUTH_STORE_T store)
 
 	/* Make sure the the public key in the device certificate matches the public key file */
 	if ((flags & LCZ_PKI_AUTH_STATUS_DEV_CERT_VALID) != 0) {
-		ret = mbedtls_pk_check_pair(&(dev_cert.private_pk), &priv_key, rng, NULL);
+		ret = mbedtls_pk_check_pair(&(dev_cert.pk), &priv_key, rng, NULL);
 		if (ret < 0) {
 			LOG_ERR("lcz_pki_auth_store_status: Device certificate key doesn't match: %d",
 				ret);
@@ -890,7 +890,7 @@ static int load_file(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file, uint8
 			ret = fsu_read_abs(filename, buffer, buffer_size);
 		}
 		if (ret < 0) {
-			LOG_ERR("load_file: Couldn't read file %s: %d", log_strdup(filename), ret);
+			LOG_ERR("load_file: Couldn't read file %s: %d", filename, ret);
 		} else if (ret == buffer_size) {
 			ret = -ENOMEM;
 		} else {

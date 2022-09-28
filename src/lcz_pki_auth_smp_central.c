@@ -492,8 +492,8 @@ static int send_start_message(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data)
 		ok = zcbor_tstr_encode(zs, &zstr);
 	}
 	if (ok) {
-		zstr.len = sec_data->tmp_data->gateway_cert.private_raw.private_len;
-		zstr.value = sec_data->tmp_data->gateway_cert.private_raw.private_p;
+		zstr.len = sec_data->tmp_data->gateway_cert.raw.len;
+		zstr.value = sec_data->tmp_data->gateway_cert.raw.p;
 		ok = zcbor_bstr_encode(zs, &zstr);
 	}
 	if (ok) {
@@ -861,7 +861,7 @@ static void handle_start_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zcb
 	}
 
 	/* Extract the sensor public key */
-	ec = mbedtls_pk_ec(sec_data->tmp_data->peripheral_cert.private_pk);
+	ec = mbedtls_pk_ec(sec_data->tmp_data->peripheral_cert.pk);
 	ret = mbedtls_ecp_point_write_binary(&ec->private_grp, &ec->private_Q,
 					     MBEDTLS_ECP_PF_UNCOMPRESSED, &output_len, q,
 					     sizeof(q));

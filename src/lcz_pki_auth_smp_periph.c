@@ -252,7 +252,7 @@ static int smp_cmd_auth_start(struct mgmt_ctxt *ctxt)
 	}
 
 	/* Extract the gateway public key */
-	sdata->ec = mbedtls_pk_ec(sdata->gateway_cert.private_pk);
+	sdata->ec = mbedtls_pk_ec(sdata->gateway_cert.pk);
 	ret = mbedtls_ecp_point_write_binary(&(sdata->ec->private_grp), &(sdata->ec->private_Q),
 					     MBEDTLS_ECP_PF_UNCOMPRESSED, &output_len, sdata->q,
 					     sizeof(sdata->q));
@@ -384,8 +384,8 @@ static int smp_cmd_auth_start(struct mgmt_ctxt *ctxt)
 	     zcbor_tstr_put_lit(zse, "rand") &&
 	     zcbor_bstr_encode_ptr(zse, sdata->sensor_random, sizeof(sdata->sensor_random)) &&
 	     zcbor_tstr_put_lit(zse, "cert") &&
-	     zcbor_bstr_encode_ptr(zse, sdata->device_cert.private_raw.private_p,
-				   sdata->device_cert.private_raw.private_len);
+	     zcbor_bstr_encode_ptr(zse, sdata->device_cert.raw.p,
+				   sdata->device_cert.raw.len);
 	if (!ok) {
 		LOG_ERR("smp_cmd_auth_start: Failed to encode response");
 		goto fail;
