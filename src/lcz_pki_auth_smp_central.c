@@ -360,6 +360,11 @@ static void reset_auth_data(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, bool free
 
 static void clean_up_data(int obj_idx, LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data)
 {
+	/* Do nothing if there is no data */
+	if (sec_data == NULL) {
+		return;
+	}
+
 	/* Clear all of the temporary data */
 	if (sec_data->tmp_data != NULL) {
 		reset_tmp_data(sec_data, true, false);
