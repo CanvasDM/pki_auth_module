@@ -90,6 +90,7 @@ typedef struct {
 	/* Session data */
 	uint64_t session_id;
 	psa_key_id_t secret_key;
+	psa_key_id_t session_aead_key;
 	psa_key_id_t session_enc_key;
 	psa_key_id_t session_sig_key;
 	uint32_t status;
@@ -150,8 +151,8 @@ void lcz_pki_auth_smp_central_unregister_handler(
 	(void)sys_slist_find_and_remove(&auth_complete_cb_list, &cb->node);
 }
 
-int lcz_pki_auth_smp_central_get_keys(const bt_addr_le_t *addr, psa_key_id_t *enc_key,
-				      psa_key_id_t *sig_key)
+int lcz_pki_auth_smp_central_get_keys(const bt_addr_le_t *addr, psa_key_id_t *aead_key,
+				      psa_key_id_t *enc_key, psa_key_id_t *sig_key)
 {
 	int ret = -EINVAL;
 	int obj_idx;
@@ -184,6 +185,9 @@ int lcz_pki_auth_smp_central_get_keys(const bt_addr_le_t *addr, psa_key_id_t *en
 
 	/* Return the keys */
 	ret = 0;
+	if (aead_key != NULL) {
+		*aead_key = sec_data->session_aead_key;
+	}
 	if (enc_key != NULL) {
 		*enc_key = sec_data->session_enc_key;
 	}
@@ -336,6 +340,7 @@ static void reset_auth_data(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, bool free
 
 		/* Free any active data structures */
 		if (free) {
+			psa_destroy_key(sec_data->session_aead_key);
 			psa_destroy_key(sec_data->session_enc_key);
 			psa_destroy_key(sec_data->session_sig_key);
 			psa_destroy_key(sec_data->secret_key);
@@ -349,6 +354,7 @@ static void reset_auth_data(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, bool free
 		/* Initialize things that need initializing */
 		if (alloc) {
 			sec_data->secret_key = PSA_KEY_HANDLE_INIT;
+			sec_data->session_aead_key = PSA_KEY_HANDLE_INIT;
 			sec_data->session_enc_key = PSA_KEY_HANDLE_INIT;
 			sec_data->session_sig_key = PSA_KEY_HANDLE_INIT;
 			sec_data->tmp_data = tmp_data;
@@ -943,6 +949,19 @@ static void handle_start_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zcb
 	/* Retrieve the session key(s) */
 	key_attr = psa_key_attributes_init();
 	psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+	psa_set_key_algorithm(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_AEAD_KEY_ALG);
+	psa_set_key_type(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
+	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
+	ret = psa_key_derivation_output_key(&key_attr, &deriv_op, &(sec_data->session_aead_key));
+	if (ret != PSA_SUCCESS) {
+		LOG_ERR("handle_start_response: Failed to retrieve derived AEAD key: %d",
+			ret);
+		goto fail;
+	}
+	psa_reset_key_attributes(&key_attr);
+
+	key_attr = psa_key_attributes_init();
+	psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
 	psa_set_key_algorithm(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_ENC_KEY_ALG);
 	psa_set_key_type(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
 	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
@@ -1112,6 +1131,19 @@ static void handle_resume_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zc
 	}
 
 	/* Retrieve the session keys */
+	key_attr = psa_key_attributes_init();
+	psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+	psa_set_key_algorithm(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_AEAD_KEY_ALG);
+	psa_set_key_type(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
+	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
+	ret = psa_key_derivation_output_key(&key_attr, &deriv_op, &(sec_data->session_aead_key));
+	if (ret != PSA_SUCCESS) {
+		LOG_ERR("handle_resume_response: Failed to retrieve derived AEAD key: %d",
+			ret);
+		goto fail;
+	}
+	psa_reset_key_attributes(&key_attr);
+
 	key_attr = psa_key_attributes_init();
 	psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
 	psa_set_key_algorithm(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_ENC_KEY_ALG);
@@ -1493,6 +1525,8 @@ static int session_resume(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data)
 	int ret = 0;
 
 	/* Destroy existing session keys that we will re-create */
+	psa_destroy_key(sec_data->session_aead_key);
+	sec_data->session_aead_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(sec_data->session_enc_key);
 	sec_data->session_enc_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(sec_data->session_sig_key);

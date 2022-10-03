@@ -93,6 +93,7 @@ static sys_slist_t auth_complete_cb_list = SYS_SLIST_STATIC_INIT(&auth_complete_
 
 static uint64_t auth_session_id = 0;
 static psa_key_id_t auth_secret_key = PSA_KEY_HANDLE_INIT;
+static psa_key_id_t auth_session_aead_key = PSA_KEY_HANDLE_INIT;
 static psa_key_id_t auth_session_enc_key = PSA_KEY_HANDLE_INIT;
 static psa_key_id_t auth_session_sig_key = PSA_KEY_HANDLE_INIT;
 static uint8_t auth_handshake_hash[LCZ_PKI_AUTH_SMP_HANDSHAKE_HASH_LEN];
@@ -112,9 +113,13 @@ void lcz_pki_auth_smp_periph_unregister_handler(
 	(void)sys_slist_find_and_remove(&auth_complete_cb_list, &cb->node);
 }
 
-int lcz_pki_auth_smp_periph_get_keys(psa_key_id_t *enc_key, psa_key_id_t *sig_key)
+int lcz_pki_auth_smp_periph_get_keys(psa_key_id_t *aead_key, psa_key_id_t *enc_key,
+				     psa_key_id_t *sig_key)
 {
 	if (auth_status == LCZ_PKI_AUTH_SMP_STATUS_GOOD) {
+		if (aead_key) {
+			*aead_key = auth_session_aead_key;
+		}
 		if (enc_key) {
 			*enc_key = auth_session_enc_key;
 		}
@@ -153,12 +158,16 @@ static void auth_status_callback(void)
 static void auth_data_reset(void)
 {
 	auth_session_id = 0;
+
+	psa_destroy_key(auth_session_aead_key);
+	auth_session_aead_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(auth_session_enc_key);
 	auth_session_enc_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(auth_session_sig_key);
 	auth_session_sig_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(auth_secret_key);
 	auth_secret_key = PSA_KEY_HANDLE_INIT;
+
 	memset(auth_handshake_hash, 0, sizeof(auth_handshake_hash));
 	auth_status = 0;
 	auth_status_callback();
@@ -341,6 +350,19 @@ static int smp_cmd_auth_start(struct mgmt_ctxt *ctxt)
 	/* Retrieve the session key */
 	sdata->key_attr = psa_key_attributes_init();
 	psa_set_key_usage_flags(&(sdata->key_attr), PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+	psa_set_key_algorithm(&(sdata->key_attr), LCZ_PKI_AUTH_SMP_SESSION_AEAD_KEY_ALG);
+	psa_set_key_type(&(sdata->key_attr), LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
+	psa_set_key_bits(&(sdata->key_attr), PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
+	ret = psa_key_derivation_output_key(&(sdata->key_attr), &(sdata->deriv_op),
+					    &auth_session_aead_key);
+	if (ret != PSA_SUCCESS) {
+		LOG_ERR("smp_cmd_auth_start: Failed to retrieve derived encryption key: %d", ret);
+		goto fail;
+	}
+	psa_reset_key_attributes(&(sdata->key_attr));
+
+	sdata->key_attr = psa_key_attributes_init();
+	psa_set_key_usage_flags(&(sdata->key_attr), PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
 	psa_set_key_algorithm(&(sdata->key_attr), LCZ_PKI_AUTH_SMP_SESSION_ENC_KEY_ALG);
 	psa_set_key_type(&(sdata->key_attr), LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
 	psa_set_key_bits(&(sdata->key_attr), PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
@@ -351,6 +373,7 @@ static int smp_cmd_auth_start(struct mgmt_ctxt *ctxt)
 		goto fail;
 	}
 	psa_reset_key_attributes(&(sdata->key_attr));
+
 	sdata->key_attr = psa_key_attributes_init();
 	psa_set_key_usage_flags(&(sdata->key_attr),
 				PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_VERIFY_MESSAGE);
@@ -384,8 +407,7 @@ static int smp_cmd_auth_start(struct mgmt_ctxt *ctxt)
 	     zcbor_tstr_put_lit(zse, "rand") &&
 	     zcbor_bstr_encode_ptr(zse, sdata->sensor_random, sizeof(sdata->sensor_random)) &&
 	     zcbor_tstr_put_lit(zse, "cert") &&
-	     zcbor_bstr_encode_ptr(zse, sdata->device_cert.raw.p,
-				   sdata->device_cert.raw.len);
+	     zcbor_bstr_encode_ptr(zse, sdata->device_cert.raw.p, sdata->device_cert.raw.len);
 	if (!ok) {
 		LOG_ERR("smp_cmd_auth_start: Failed to encode response");
 		goto fail;
@@ -456,6 +478,8 @@ static int smp_cmd_auth_resume(struct mgmt_ctxt *ctxt)
 	};
 
 	/* On resume, destroy the session keys first */
+	psa_destroy_key(auth_session_aead_key);
+	auth_session_aead_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(auth_session_enc_key);
 	auth_session_enc_key = PSA_KEY_HANDLE_INIT;
 	psa_destroy_key(auth_session_sig_key);
@@ -531,6 +555,18 @@ static int smp_cmd_auth_resume(struct mgmt_ctxt *ctxt)
 	/* Retrieve the session key */
 	key_attr = psa_key_attributes_init();
 	psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+	psa_set_key_algorithm(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_AEAD_KEY_ALG);
+	psa_set_key_type(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
+	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
+	ret = psa_key_derivation_output_key(&key_attr, &deriv_op, &auth_session_aead_key);
+	if (ret != PSA_SUCCESS) {
+		LOG_ERR("smp_cmd_auth_resume: Failed to retrieve derived encryption key: %d", ret);
+		goto fail;
+	}
+	psa_reset_key_attributes(&key_attr);
+
+	key_attr = psa_key_attributes_init();
+	psa_set_key_usage_flags(&key_attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
 	psa_set_key_algorithm(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_ENC_KEY_ALG);
 	psa_set_key_type(&key_attr, LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE);
 	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
@@ -540,6 +576,7 @@ static int smp_cmd_auth_resume(struct mgmt_ctxt *ctxt)
 		goto fail;
 	}
 	psa_reset_key_attributes(&key_attr);
+
 	key_attr = psa_key_attributes_init();
 	psa_set_key_usage_flags(&key_attr,
 				PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_VERIFY_MESSAGE);

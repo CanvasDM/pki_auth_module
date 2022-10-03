@@ -47,7 +47,8 @@ extern "C" {
 #define LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN 16 /* aes128 */
 #define LCZ_PKI_AUTH_SMP_HANDSHAKE_HASH_LEN 32 /* sha256 */
 #define LCZ_PKI_AUTH_SMP_VERIFY_LEN 16
-#define LCZ_PKI_AUTH_SMP_SESSION_ENC_KEY_ALG PSA_ALG_GCM
+#define LCZ_PKI_AUTH_SMP_SESSION_AEAD_KEY_ALG PSA_ALG_GCM
+#define LCZ_PKI_AUTH_SMP_SESSION_ENC_KEY_ALG PSA_ALG_ECB_NO_PADDING
 #define LCZ_PKI_AUTH_SMP_SESSION_SIG_KEY_ALG PSA_ALG_CMAC
 #define LCZ_PKI_AUTH_SMP_SESSION_KEY_TYPE PSA_KEY_TYPE_AES
 
@@ -109,13 +110,14 @@ void lcz_pki_auth_smp_central_unregister_handler(
  * @brief Retrieve the negotiated session keys for a peripheral
  *
  * @param[in] addr BLE address of the device for which the key should be returned
+ * @param[out] aead_key Pointer to where AEAD key should be returned
  * @param[out] enc_key Pointer to where encryption key should be returned
  * @param[out] sig_key Pointer to where signing key should be returned
  *
  * @returns 0 on success, <0 on error
  */
-int lcz_pki_auth_smp_central_get_keys(const bt_addr_le_t *addr, psa_key_id_t *enc_key,
-				      psa_key_id_t *sig_key);
+int lcz_pki_auth_smp_central_get_keys(const bt_addr_le_t *addr, psa_key_id_t *aead_key,
+				      psa_key_id_t *enc_key, psa_key_id_t *sig_key);
 
 /**
  * @brief Start the SMP authentication process with a BLE peripheral
@@ -147,12 +149,14 @@ void lcz_pki_auth_smp_periph_unregister_handler(
 /**
  * @brief Retrieve the negotiated session keys as a peripheral
  *
+ * @param[out] aead_key Pointer to where AEAD key should be returned
  * @param[out] enc_key Pointer to where encryption key should be returned
  * @param[out] sig_key Pointer to where signing key should be returned
  *
  * @returns 0 on success, <0 on error
  */
-int lcz_pki_auth_smp_periph_get_keys(psa_key_id_t *enc_key, psa_key_id_t *sig_key);
+int lcz_pki_auth_smp_periph_get_keys(psa_key_id_t *aead_key, psa_key_id_t *enc_key,
+				     psa_key_id_t *sig_key);
 #endif /* LCZ_PKI_AUTH_SMP_PERIPHERAL */
 
 #ifdef __cplusplus
