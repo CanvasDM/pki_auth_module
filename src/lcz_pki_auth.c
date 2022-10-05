@@ -642,20 +642,6 @@ uint8_t lcz_pki_auth_store_status(LCZ_PKI_AUTH_STORE_T store)
 		flags |= LCZ_PKI_AUTH_STATUS_DEV_CERT_VALID;
 	}
 
-	/* Validate the device certificate against the CA certificate */
-	if ((flags & (LCZ_PKI_AUTH_STATUS_CA_CERT_VALID | LCZ_PKI_AUTH_STATUS_DEV_CERT_VALID)) ==
-	    (LCZ_PKI_AUTH_STATUS_CA_CERT_VALID | LCZ_PKI_AUTH_STATUS_DEV_CERT_VALID)) {
-		ret = mbedtls_x509_crt_verify(&dev_cert, &ca_cert, NULL, NULL, &ver_flags, NULL,
-					      NULL);
-		if (ret < 0) {
-			LOG_ERR("lcz_pki_auth_store_status: Could not parse device certificate: %d %08x",
-				ret, ver_flags);
-			flags &= ~LCZ_PKI_AUTH_STATUS_CA_CERT_VALID;
-			flags &= ~LCZ_PKI_AUTH_STATUS_DEV_CERT_VALID;
-			goto done;
-		}
-	}
-
 	/* Make sure the the public key in the device certificate matches the public key file */
 	if ((flags & LCZ_PKI_AUTH_STATUS_DEV_CERT_VALID) != 0) {
 		ret = mbedtls_pk_check_pair(&(dev_cert.pk), &priv_key, rng, NULL);
