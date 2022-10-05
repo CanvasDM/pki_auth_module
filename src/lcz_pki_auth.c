@@ -82,7 +82,9 @@ typedef struct {
 /**************************************************************************************************/
 static int rng(void *context, unsigned char *data, size_t size);
 static bool file_exists(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file);
+#if defined(CONFIG_TLS_CREDENTIALS)
 static int file_size(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file);
+#endif
 static int load_file(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file, uint8_t *buffer,
 		     size_t buffer_size);
 
@@ -855,6 +857,7 @@ static bool file_exists(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file)
 	return false;
 }
 
+#if defined(CONFIG_TLS_CREDENTIALS)
 static int file_size(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file)
 {
 	uint8_t filename[FSU_MAX_ABS_PATH_SIZE];
@@ -873,11 +876,12 @@ static int file_size(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file)
 
 	return ret;
 }
+#endif
 
 static int load_file(LCZ_PKI_AUTH_STORE_T store, LCZ_PKI_AUTH_FILE_T file, uint8_t *buffer,
 		     size_t buffer_size)
 {
-	uint8_t filename[FSU_MAX_ABS_PATH_SIZE];
+	char filename[FSU_MAX_ABS_PATH_SIZE];
 	int ret = -ENOENT;
 
 	if (lcz_pki_auth_file_name_get(store, file, filename, sizeof(filename)) == 0) {
