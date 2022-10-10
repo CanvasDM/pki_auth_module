@@ -362,7 +362,7 @@ done:
 }
 
 #if defined(CONFIG_TLS_CREDENTIALS)
-int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag)
+int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag, bool root_only)
 {
 	int ret = 0;
 
@@ -370,35 +370,41 @@ int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag)
 	lcz_pki_auth_tls_credential_unload(store, tls_tag);
 
 	/* Make sure that all of the files are present */
-	if (file_exists(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY) == false) {
-		return -ENOENT;
-	}
-	if (file_exists(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE) == false) {
-		return -ENOENT;
+	if (root_only == false ) {
+		if (file_exists(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY) == false) {
+			return -ENOENT;
+		}
+		if (file_exists(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE) == false) {
+			return -ENOENT;
+		}
 	}
 	if (file_exists(store, LCZ_PKI_AUTH_FILE_CA_CERTIFICATE) == false) {
 		return -ENOENT;
 	}
 
 	/* Allocate memory for the new credential */
-	if (store_cache[store].private_key == NULL) {
-		store_cache[store].private_key_size =
-			file_size(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY) + 1;
-		store_cache[store].private_key = k_malloc(store_cache[store].private_key_size);
+	if (root_only == false ) {
 		if (store_cache[store].private_key == NULL) {
-			LOG_ERR("lcz_pki_auth_tls_credential_add: No memory for private key");
-			ret = -ENOMEM;
-			goto fail;
+			store_cache[store].private_key_size =
+				file_size(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY) + 1;
+			store_cache[store].private_key =
+				k_malloc(store_cache[store].private_key_size);
+			if (store_cache[store].private_key == NULL) {
+				LOG_ERR("lcz_pki_auth_tls_credential_add: No memory for private key");
+				ret = -ENOMEM;
+				goto fail;
+			}
 		}
-	}
-	if (store_cache[store].device_cert == NULL) {
-		store_cache[store].device_cert_size =
-			file_size(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE) + 1;
-		store_cache[store].device_cert = k_malloc(store_cache[store].device_cert_size);
 		if (store_cache[store].device_cert == NULL) {
-			LOG_ERR("lcz_pki_auth_tls_credential_add: No memory for device cert");
-			ret = -ENOMEM;
-			goto fail;
+			store_cache[store].device_cert_size =
+				file_size(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE) + 1;
+			store_cache[store].device_cert =
+				k_malloc(store_cache[store].device_cert_size);
+			if (store_cache[store].device_cert == NULL) {
+				LOG_ERR("lcz_pki_auth_tls_credential_add: No memory for device cert");
+				ret = -ENOMEM;
+				goto fail;
+			}
 		}
 	}
 	if (store_cache[store].ca_cert == NULL) {
@@ -412,19 +418,39 @@ int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag)
 		}
 	}
 
-	/* Load the device certificate */
-	ret = load_file(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE, store_cache[store].device_cert,
-			store_cache[store].device_cert_size);
-	if (ret < 0) {
-		goto fail;
-	}
-	ret = tls_credential_add(tls_tag, TLS_CREDENTIAL_SERVER_CERTIFICATE,
-				 store_cache[store].device_cert,
-				 store_cache[store].device_cert_size);
-	if (ret < 0) {
-		LOG_ERR("lcz_pki_auth_tls_credential_load: Couldn't add device certificate: %d",
-			ret);
-		goto fail;
+
+	/* Load the private key */
+	if (root_only == false) {
+		ret = load_file(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY,
+				store_cache[store].private_key,
+				store_cache[store].private_key_size);
+		if (ret < 0) {
+			goto fail;
+		}
+		ret = tls_credential_add(tls_tag, TLS_CREDENTIAL_PRIVATE_KEY,
+					 store_cache[store].private_key,
+					 store_cache[store].private_key_size);
+		if (ret < 0) {
+			LOG_ERR("lcz_pki_auth_tls_credential_load: Couldn't add private key: %d",
+				ret);
+			goto fail;
+		}
+
+		/* Load the device certificate */
+		ret = load_file(store, LCZ_PKI_AUTH_FILE_DEVICE_CERTIFICATE,
+				store_cache[store].device_cert,
+				store_cache[store].device_cert_size);
+		if (ret < 0) {
+			goto fail;
+		}
+		ret = tls_credential_add(tls_tag, TLS_CREDENTIAL_SERVER_CERTIFICATE,
+					 store_cache[store].device_cert,
+					 store_cache[store].device_cert_size);
+		if (ret < 0) {
+			LOG_ERR("lcz_pki_auth_tls_credential_load: Couldn't add device certificate: %d",
+				ret);
+			goto fail;
+		}
 	}
 
 	/* Load the CA certificate */
@@ -437,20 +463,6 @@ int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag)
 				 store_cache[store].ca_cert_size);
 	if (ret < 0) {
 		LOG_ERR("lcz_pki_auth_tls_credential_load: Couldn't add CA certificate: %d", ret);
-		goto fail;
-	}
-
-	/* Load the private key */
-	ret = load_file(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY, store_cache[store].private_key,
-			store_cache[store].private_key_size);
-	if (ret < 0) {
-		goto fail;
-	}
-	ret = tls_credential_add(tls_tag, TLS_CREDENTIAL_PRIVATE_KEY,
-				 store_cache[store].private_key,
-				 store_cache[store].private_key_size);
-	if (ret < 0) {
-		LOG_ERR("lcz_pki_auth_tls_credential_load: Couldn't add private key: %d", ret);
 		goto fail;
 	}
 

@@ -99,10 +99,11 @@ int lcz_pki_auth_csr_gen(LCZ_PKI_AUTH_STORE_T store, const char *country, const 
  *
  * @param[in] store Store to load
  * @param[in] tls_tag TLS tag to use for the credential
+ * @param[in] root_only Only load root certificate
  *
  * @returns 0 on success, <0 on error
  */
-int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag);
+int lcz_pki_auth_tls_credential_load(LCZ_PKI_AUTH_STORE_T store, int tls_tag, bool root_only);
 
 /**
  * @brief Unload the specified credential from the TLS database
