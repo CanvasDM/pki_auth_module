@@ -503,7 +503,6 @@ uint8_t lcz_pki_auth_store_status(LCZ_PKI_AUTH_STORE_T store)
 	mbedtls_x509_crt dev_cert;
 	int ret = 0;
 	uint8_t flags = 0;
-	uint32_t ver_flags = 0;
 
 	/* Check to see what files are present */
 	if (file_exists(store, LCZ_PKI_AUTH_FILE_PRIVATE_KEY)) {
