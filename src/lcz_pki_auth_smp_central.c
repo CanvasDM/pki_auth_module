@@ -954,8 +954,7 @@ static void handle_start_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zcb
 	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
 	ret = psa_key_derivation_output_key(&key_attr, &deriv_op, &(sec_data->session_aead_key));
 	if (ret != PSA_SUCCESS) {
-		LOG_ERR("handle_start_response: Failed to retrieve derived AEAD key: %d",
-			ret);
+		LOG_ERR("handle_start_response: Failed to retrieve derived AEAD key: %d", ret);
 		goto fail;
 	}
 	psa_reset_key_attributes(&key_attr);
@@ -995,7 +994,8 @@ static void handle_start_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zcb
 
 	/* Compute the gateway verify response */
 
-	ret = psa_mac_sign_setup(&mac_op, sec_data->session_sig_key, PSA_ALG_CMAC);
+	ret = psa_mac_sign_setup(&mac_op, sec_data->session_sig_key,
+				 PSA_ALG_FULL_LENGTH_MAC(PSA_ALG_CMAC));
 	if (ret != PSA_SUCCESS) {
 		LOG_ERR("handle_start_response: Gateway verify setup failed: %d", ret);
 		goto fail;
@@ -1138,8 +1138,7 @@ static void handle_resume_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zc
 	psa_set_key_bits(&key_attr, PSA_BYTES_TO_BITS(LCZ_PKI_AUTH_SMP_SESSION_KEY_LEN));
 	ret = psa_key_derivation_output_key(&key_attr, &deriv_op, &(sec_data->session_aead_key));
 	if (ret != PSA_SUCCESS) {
-		LOG_ERR("handle_resume_response: Failed to retrieve derived AEAD key: %d",
-			ret);
+		LOG_ERR("handle_resume_response: Failed to retrieve derived AEAD key: %d", ret);
 		goto fail;
 	}
 	psa_reset_key_attributes(&key_attr);
@@ -1179,7 +1178,8 @@ static void handle_resume_response(LCZ_PKI_AUTH_SMP_CENTRAL_DATA_T *sec_data, zc
 
 	/* Compute the gateway verify response */
 
-	ret = psa_mac_sign_setup(&mac_op, sec_data->session_sig_key, PSA_ALG_CMAC);
+	ret = psa_mac_sign_setup(&mac_op, sec_data->session_sig_key,
+				 PSA_ALG_FULL_LENGTH_MAC(PSA_ALG_CMAC));
 	if (ret != PSA_SUCCESS) {
 		LOG_ERR("handle_resume_response: Gateway verify setup failed: %d", ret);
 		goto fail;

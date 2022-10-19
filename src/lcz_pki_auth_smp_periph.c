@@ -666,7 +666,8 @@ static int smp_cmd_auth_verify(struct mgmt_ctxt *ctxt)
 
 	/* Compute the expected gateway response */
 
-	ret = psa_mac_verify_setup(&mac_op, auth_session_sig_key, PSA_ALG_CMAC);
+	ret = psa_mac_verify_setup(&mac_op, auth_session_sig_key,
+				   PSA_ALG_FULL_LENGTH_MAC(PSA_ALG_CMAC));
 	if (ret != PSA_SUCCESS) {
 		LOG_ERR("smp_cmd_auth_verify: Gateway verify setup failed: %d", ret);
 		goto fail;
@@ -696,7 +697,8 @@ static int smp_cmd_auth_verify(struct mgmt_ctxt *ctxt)
 
 	/* Compute the sensor response */
 
-	ret = psa_mac_sign_setup(&mac_op, auth_session_sig_key, PSA_ALG_CMAC);
+	ret = psa_mac_sign_setup(&mac_op, auth_session_sig_key,
+				 PSA_ALG_FULL_LENGTH_MAC(PSA_ALG_CMAC));
 	if (ret != PSA_SUCCESS) {
 		LOG_ERR("smp_cmd_auth_verify: Sensor verify setup failed: %d", ret);
 		goto fail;
